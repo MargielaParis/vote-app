@@ -266,7 +266,6 @@ export function validateVote(body, poll) {
 
 const PATCH_FIELDS = new Set([
   'rev',
-  'confirmDestructive',
   'title',
   'description',
   'deadline',
@@ -280,15 +279,6 @@ const PATCH_FIELDS = new Set([
   'password',
 ])
 
-function apptShrinks(next, prev) {
-  return (
-    isoToDayNum(next.startDate) > isoToDayNum(prev.startDate) ||
-    isoToDayNum(next.endDate) < isoToDayNum(prev.endDate) ||
-    next.startMinute > prev.startMinute ||
-    next.endMinute < prev.endMinute
-  )
-}
-
 /**
  * @returns {{ next: object, warnings: string[], newPassword: string|null }}
  */
@@ -296,12 +286,18 @@ export function validatePatch(body, poll, ballotCount) {
   if (!body || typeof body !== 'object') throw bad('요청 본문이 필요합니다.')
   assertNoUnknown(body, PATCH_FIELDS, '요청')
 
+  if (ballotCount > 0) {
+    throw conflict(
+      'poll_locked',
+      `이미 ${ballotCount}명이 참여해 투표를 수정할 수 없습니다. 참여자 명단과 투표 삭제는 계속 사용할 수 있습니다.`,
+    )
+  }
+
   const rev = reqInt(body.rev, '수정 버전')
   if (rev !== poll.rev) {
     throw conflict('stale_rev', '다른 곳에서 먼저 수정되었습니다. 새로고침 후 다시 시도해 주세요.')
   }
 
-  const confirm = body.confirmDestructive === true
   const next = { ...poll }
   const warnings = []
 
@@ -316,9 +312,6 @@ export function validatePatch(body, poll, ballotCount) {
   if (body.allowRevote !== undefined) next.allowRevote = reqBool(body.allowRevote, '재투표 허용')
 
   if (body.anonymous !== undefined && body.anonymous !== poll.anonymous) {
-    if (ballotCount > 0) {
-      throw conflict('locked_field', '이미 표가 있어 익명 여부는 바꿀 수 없습니다.')
-    }
     next.anonymous = reqBool(body.anonymous, '익명 여부')
   }
 
@@ -334,9 +327,6 @@ export function validatePatch(body, poll, ballotCount) {
       throw bad('약속 잡기는 복수 선택 설정을 바꿀 수 없습니다.')
     }
     const wanted = reqBool(body.multiSelect, '복수 선택')
-    if (!wanted && ballotCount > 0) {
-      throw conflict('locked_field', '이미 표가 있어 단일 선택으로 되돌릴 수 없습니다.')
-    }
     next.multiSelect = wanted
   }
 
@@ -351,13 +341,6 @@ export function validatePatch(body, poll, ballotCount) {
     )
     const nextIds = new Set(options.map((o) => o.id))
     const removed = [...keepIds].filter((id) => !nextIds.has(id))
-    if (removed.length > 0 && ballotCount > 0 && !confirm) {
-      throw conflict(
-        'destructive',
-        `항목 ${removed.length}개를 삭제합니다. 이미 투표한 ${ballotCount}명의 응답이 영향을 받습니다.`,
-        { removed },
-      )
-    }
     if (removed.length > 0) warnings.push(`항목 ${removed.length}개를 삭제했습니다.`)
     next.options = options
     next.nextOptionSeq = nextOptionSeq
@@ -365,22 +348,7 @@ export function validatePatch(body, poll, ballotCount) {
 
   if (body.appointment !== undefined) {
     if (poll.pollType !== POLL_TYPE.APPOINTMENT) throw bad('이 투표에는 기간 설정이 없습니다.')
-    const appt = validAppointment(body.appointment)
-    if (ballotCount > 0 && apptShrinks(appt, poll.appointment) && !confirm) {
-      throw conflict(
-        'destructive',
-        '기간이나 시간 범위가 줄어듭니다. 범위 밖 선택은 화면에서 사라지지만 지워지지는 않아서, 나중에 범위를 다시 넓히면 되살아납니다.',
-        { shrink: true },
-      )
-    }
-    if (ballotCount > 0 && appt.slotMinutes !== poll.appointment.slotMinutes) {
-      warnings.push(
-        appt.slotMinutes > poll.appointment.slotMinutes
-          ? '슬롯을 넓혔습니다. 30분 두 칸이 모두 선택된 시간만 가능으로 집계됩니다.'
-          : '슬롯을 좁혔습니다.',
-      )
-    }
-    next.appointment = appt
+    next.appointment = validAppointment(body.appointment)
   }
 
   let newPassword = null

@@ -10,11 +10,13 @@ import {
 } from '@shared/enums.js'
 import { Layout, Loading, EmptyState } from '@/components/Layout.jsx'
 import { PageMeta } from '@/components/PageMeta.jsx'
+import { PollTabs } from '@/components/PollTabs.jsx'
 import { Field, ChoiceCard } from '@/components/Field.jsx'
 import { OptionListEditor } from '@/components/OptionListEditor.jsx'
 import { CalendarMonth } from '@/components/CalendarMonth.jsx'
 import { AppointmentRangePicker } from '@/components/AppointmentRangePicker.jsx'
 import { ConfirmDialog } from '@/components/ConfirmDialog.jsx'
+import { EditIcon, LockIcon, TrashIcon, UsersIcon } from '@/components/Icons.jsx'
 import { useToast } from '@/lib/toastContext.js'
 import { api, ApiError } from '@/lib/api.js'
 import { usePoll } from '@/hooks/usePoll.js'
@@ -22,6 +24,36 @@ import { setAdminToken, clearAdminToken } from '@/lib/adminSession.js'
 import { forgetPoll } from '@/lib/pollHistory.js'
 import { toLocalInput, fromLocalInput, formatIsoDate } from '@/lib/datetime.js'
 import { pollMetaDescription } from '@shared/meta.js'
+import { buildGrid, isRowSelected, masksToSelection } from '@shared/slots.js'
+
+const participantTimeFormat = new Intl.DateTimeFormat('ko-KR', {
+  month: 'short',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+})
+
+function ballotSelections(poll, ballot) {
+  if (poll.pollType === POLL_TYPE.APPOINTMENT) {
+    const selected = masksToSelection(ballot.slots)
+    const grid = buildGrid(poll.appointment)
+    return grid.days.flatMap((day) =>
+      grid.rows
+        .filter((row) => isRowSelected(selected, day.key, row))
+        .map((row) => `${day.label}(${day.weekdayKo}) ${row.rangeLabel}`),
+    )
+  }
+
+  const labels = new Map(
+    (poll.options || []).map((option) => [
+      option.id,
+      poll.pollType === POLL_TYPE.DATE
+        ? formatIsoDate(option.date, { withYear: true })
+        : option.label,
+    ]),
+  )
+  return (ballot.choices || []).map((id) => labels.get(id) || '삭제된 항목')
+}
 
 export default function ManagePage() {
   const { id } = useParams()
@@ -78,7 +110,11 @@ function PasswordGate({ id, title, onDone }) {
   return (
     <Layout>
       <PageMeta title={`${title} 관리`} canonicalPath={`/p/${id}`} />
-      <div className="card" style={{ marginTop: 24 }}>
+      <PollTabs pollId={id} />
+      <div className="card manage-password-card">
+        <span className="manage-password-icon">
+          <LockIcon size={23} />
+        </span>
         <h1 className="card-title">비밀번호 확인</h1>
         <p className="card-sub">
           {title
@@ -93,9 +129,11 @@ function PasswordGate({ id, title, onDone }) {
               value={password}
               autoFocus
               autoComplete="current-password"
+              minLength={LIMITS.PASSWORD_MIN}
               maxLength={LIMITS.PASSWORD_MAX}
               placeholder="비밀번호"
               onChange={(e) => setPassword(e.target.value)}
+              required
             />
           </Field>
           <button type="submit" className="btn btn--primary btn--block" disabled={busy}>
@@ -140,8 +178,9 @@ function ManageView({ id, data, reload }) {
 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [confirmState, setConfirmState] = useState(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [ballotToDelete, setBallotToDelete] = useState(null)
+  const [activeSection, setActiveSection] = useState(hasBallots ? 'participants' : 'edit')
 
   const sortedDates = useMemo(() => [...dates].sort(), [dates])
 
@@ -154,7 +193,7 @@ function ManageView({ id, data, reload }) {
     })
   }
 
-  const buildPatch = (confirmDestructive) => {
+  const buildPatch = () => {
     const deadlineMs = fromLocalInput(deadline)
     if (Number.isNaN(deadlineMs)) throw new Error('마감 시각을 확인해 주세요.')
 
@@ -167,8 +206,6 @@ function ManageView({ id, data, reload }) {
       allowRevote,
     }
     if (!poll.anonymous) body.nameDisclosure = nameDisclosure
-    if (confirmDestructive) body.confirmDestructive = true
-
     if (isAppointment) {
       body.appointment = appt
     } else {
@@ -182,20 +219,16 @@ function ManageView({ id, data, reload }) {
     return body
   }
 
-  const save = async (confirmDestructive = false) => {
+  const save = async () => {
     if (busy) return
     setBusy(true)
     setError('')
     try {
-      const res = await api.patchPoll(id, buildPatch(confirmDestructive))
+      const res = await api.patchPoll(id, buildPatch())
       setNewPassword('')
       toast.show(res.warnings?.length ? res.warnings.join(' ') : '저장했습니다.')
       await reload()
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'destructive') {
-        setConfirmState({ message: err.message })
-        return
-      }
       const message = err instanceof ApiError ? err.message : err.message || '저장하지 못했습니다.'
       setError(message)
       toast.error(message)
@@ -221,7 +254,10 @@ function ManageView({ id, data, reload }) {
     }
   }
 
-  const removeBallot = async (voterKey, label) => {
+  const removeBallot = async () => {
+    if (!ballotToDelete) return
+    const { voterKey, label } = ballotToDelete
+    setBallotToDelete(null)
     setBusy(true)
     try {
       await api.deleteVoterBallot(id, voterKey)
@@ -234,6 +270,16 @@ function ManageView({ id, data, reload }) {
     }
   }
 
+  const lockManagement = async () => {
+    clearAdminToken(id)
+    await reload()
+  }
+
+  const selectSection = (section) => {
+    setError('')
+    setActiveSection(section)
+  }
+
   return (
     <Layout>
       <PageMeta
@@ -241,251 +287,349 @@ function ManageView({ id, data, reload }) {
         description={pollMetaDescription(poll)}
         canonicalPath={`/p/${id}`}
       />
-      <div className="row-between" style={{ margin: '10px 0 18px' }}>
-        <h1 className="poll-title">투표 관리</h1>
-        <Link to={`/p/${id}`} className="btn btn--sm">
-          투표 화면
-        </Link>
-      </div>
-
-      {hasBallots && (
-        <div className="notice" style={{ marginBottom: 16 }}>
-          이미 <strong>{data.totalVoters}명</strong>이 참여했습니다. 투표 유형·익명 여부·복수 선택
-          해제는 더 이상 바꿀 수 없습니다.
+      <div className="manage-page-head">
+        <div>
+          <p className="eyebrow">OWNER CONSOLE</p>
+          <h1 className="poll-title">{poll.title} 관리</h1>
+          <p>비밀번호를 확인한 사람만 이 화면과 참여자 응답을 볼 수 있습니다.</p>
         </div>
-      )}
-
-      <div className="card">
-        <h2 className="card-title">기본 정보</h2>
-        <div className="stack">
-          <Field label="제목" count={`${title.length} / ${LIMITS.TITLE_MAX}`}>
-            <input
-              className="input"
-              value={title}
-              maxLength={LIMITS.TITLE_MAX}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </Field>
-          <Field label="설명" count={`${description.length} / ${LIMITS.DESC_MAX}`}>
-            <textarea
-              className="textarea"
-              value={description}
-              maxLength={LIMITS.DESC_MAX}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </Field>
-          <Field label="마감 시각" hint="앞당기거나 미룰 수 있습니다.">
-            <input
-              type="datetime-local"
-              className="input"
-              value={deadline}
-              onChange={(e) => setDeadline(e.target.value)}
-            />
-          </Field>
-        </div>
-      </div>
-
-      {poll.pollType === POLL_TYPE.TEXT && (
-        <div className="card">
-          <h2 className="card-title">항목</h2>
-          <p className="card-sub">
-            항목을 지우면 그 항목을 골랐던 응답은 집계에서 빠집니다. 참여자 수는 그대로입니다.
-          </p>
-          <OptionListEditor items={textOptions} onChange={setTextOptions} disabled={busy} />
-        </div>
-      )}
-
-      {poll.pollType === POLL_TYPE.DATE && (
-        <div className="card">
-          <h2 className="card-title">후보 날짜</h2>
-          <CalendarMonth selected={dates} onToggle={toggleDate} minIso={null} />
-          <div className="badges" style={{ marginTop: 12 }}>
-            {sortedDates.map((d) => (
-              <button
-                key={d}
-                type="button"
-                className="badge badge--accent"
-                onClick={() => toggleDate(d)}
-              >
-                {formatIsoDate(d)} ×
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {isAppointment && (
-        <div className="card">
-          <h2 className="card-title">기간과 시간</h2>
-          <p className="card-sub">
-            범위를 줄여도 참여자가 고른 시간은 지워지지 않습니다. 다시 넓히면 그대로 되살아납니다.
-          </p>
-          <AppointmentRangePicker value={appt} onChange={setAppt} disabled={busy} />
-        </div>
-      )}
-
-      <div className="card">
-        <h2 className="card-title">공개와 참여</h2>
-        <div className="stack">
-          <Field label="결과 공개 시점">
-            <div className="choice-grid choice-grid--3">
-              {Object.values(RESULT_VISIBILITY).map((v) => (
-                <ChoiceCard
-                  key={v}
-                  type="radio"
-                  name="rv"
-                  checked={resultVisibility === v}
-                  onChange={() => setResultVisibility(v)}
-                  title={RESULT_VISIBILITY_LABEL[v]}
-                />
-              ))}
-            </div>
-          </Field>
-
-          {!poll.anonymous && (
-            <Field label="이름 공개 범위">
-              <div className="choice-grid choice-grid--2">
-                {Object.values(NAME_DISCLOSURE).map((v) => (
-                  <ChoiceCard
-                    key={v}
-                    type="radio"
-                    name="nd"
-                    checked={nameDisclosure === v}
-                    onChange={() => setNameDisclosure(v)}
-                    title={NAME_DISCLOSURE_LABEL[v]}
-                  />
-                ))}
-              </div>
-            </Field>
-          )}
-
-          {!isAppointment && (
-            <Field
-              label="고를 수 있는 개수"
-              hint={
-                hasBallots && poll.multiSelect
-                  ? '표가 있어 "하나만"으로 되돌릴 수 없습니다.'
-                  : undefined
-              }
-            >
-              <div className="choice-grid choice-grid--2">
-                <ChoiceCard
-                  type="radio"
-                  name="ms"
-                  checked={!multiSelect}
-                  onChange={() => setMultiSelect(false)}
-                  title="하나만"
-                  disabled={hasBallots && poll.multiSelect}
-                />
-                <ChoiceCard
-                  type="radio"
-                  name="ms"
-                  checked={multiSelect}
-                  onChange={() => setMultiSelect(true)}
-                  title="여러 개"
-                />
-              </div>
-            </Field>
-          )}
-
-          <Field label="재투표">
-            <div className="choice-grid choice-grid--2">
-              <ChoiceCard
-                type="radio"
-                name="ar"
-                checked={allowRevote}
-                onChange={() => setAllowRevote(true)}
-                title="마감 전까지 수정 허용"
-              />
-              <ChoiceCard
-                type="radio"
-                name="ar"
-                checked={!allowRevote}
-                onChange={() => setAllowRevote(false)}
-                title="한 번만 참여"
-              />
-            </div>
-          </Field>
-
-          <Field label="비밀번호 변경" hint="비워 두면 그대로 둡니다.">
-            <input
-              type="password"
-              className="input"
-              value={newPassword}
-              minLength={LIMITS.PASSWORD_MIN}
-              maxLength={LIMITS.PASSWORD_MAX}
-              autoComplete="new-password"
-              placeholder="새 비밀번호"
-              onChange={(e) => setNewPassword(e.target.value)}
-            />
-          </Field>
-        </div>
-      </div>
-
-      {error && <div className="notice notice--danger">{error}</div>}
-
-      <div className="row" style={{ marginTop: 18 }}>
-        <button
-          type="button"
-          className="btn btn--primary btn--lg"
-          onClick={() => save(false)}
-          disabled={busy}
-        >
-          {busy ? '저장 중…' : '변경 사항 저장'}
+        <button type="button" className="btn btn--sm btn--ghost" onClick={lockManagement}>
+          <LockIcon size={15} /> 관리 잠그기
         </button>
       </div>
 
-      {data.ballots?.length > 0 && (
-        <div className="card">
-          <h2 className="card-title">참여자 관리</h2>
-          <p className="card-sub">
-            기기를 바꿔서 자기 응답을 못 고치는 사람이 있으면, 그 표를 지워 주면 다시 참여할 수
-            있습니다.
-          </p>
-          <ul className="stack" style={{ gap: 8 }}>
-            {data.ballots.map((b, i) => (
-              <li key={b.voterKey} className="row-between day-summary-row">
-                <span>{poll.anonymous ? `익명 ${i + 1}` : b.name || '(이름 없음)'}</span>
+      <PollTabs pollId={id} />
+
+      <nav className="manage-tabs" aria-label="관리 메뉴" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeSection === 'edit'}
+          className={activeSection === 'edit' ? 'is-active' : ''}
+          onClick={() => selectSection('edit')}
+        >
+          <EditIcon size={17} />
+          <span>투표 수정</span>
+          {hasBallots && <small>잠김</small>}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeSection === 'participants'}
+          className={activeSection === 'participants' ? 'is-active' : ''}
+          onClick={() => selectSection('participants')}
+        >
+          <UsersIcon size={17} />
+          <span>참여자</span>
+          <small>{data.totalVoters}</small>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeSection === 'delete'}
+          className={activeSection === 'delete' ? 'is-active' : ''}
+          onClick={() => selectSection('delete')}
+        >
+          <TrashIcon size={16} />
+          <span>삭제</span>
+        </button>
+      </nav>
+
+      {activeSection === 'edit' && (
+        <section className="manage-panel" role="tabpanel">
+          {hasBallots ? (
+            <div className="card manage-locked">
+              <span>
+                <LockIcon size={25} />
+              </span>
+              <div>
+                <h2 className="card-title">참여자가 있어 수정이 잠겼습니다.</h2>
+                <p>
+                  첫 응답이 들어온 뒤에는 제목, 항목, 마감과 공개 설정을 바꿀 수 없습니다. 참여자
+                  명단 확인과 투표 삭제는 계속 가능합니다.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="notice manage-edit-notice">
+                첫 참여자가 생기기 전까지만 수정할 수 있습니다.
+              </div>
+
+              <div className="card">
+                <h2 className="card-title">기본 정보</h2>
+                <div className="stack">
+                  <Field label="제목" count={`${title.length} / ${LIMITS.TITLE_MAX}`}>
+                    <input
+                      className="input"
+                      value={title}
+                      maxLength={LIMITS.TITLE_MAX}
+                      onChange={(e) => setTitle(e.target.value)}
+                    />
+                  </Field>
+                  <Field label="설명" count={`${description.length} / ${LIMITS.DESC_MAX}`}>
+                    <textarea
+                      className="textarea"
+                      value={description}
+                      maxLength={LIMITS.DESC_MAX}
+                      onChange={(e) => setDescription(e.target.value)}
+                    />
+                  </Field>
+                  <Field label="마감 시각" hint="앞당기거나 미룰 수 있습니다.">
+                    <input
+                      type="datetime-local"
+                      className="input"
+                      value={deadline}
+                      onChange={(e) => setDeadline(e.target.value)}
+                    />
+                  </Field>
+                </div>
+              </div>
+
+              {poll.pollType === POLL_TYPE.TEXT && (
+                <div className="card">
+                  <h2 className="card-title">항목</h2>
+                  <p className="card-sub">항목 이름을 바꾸거나 새 항목을 추가할 수 있습니다.</p>
+                  <OptionListEditor items={textOptions} onChange={setTextOptions} disabled={busy} />
+                </div>
+              )}
+
+              {poll.pollType === POLL_TYPE.DATE && (
+                <div className="card">
+                  <h2 className="card-title">후보 날짜</h2>
+                  <CalendarMonth selected={dates} onToggle={toggleDate} minIso={null} />
+                  <div className="badges" style={{ marginTop: 12 }}>
+                    {sortedDates.map((date) => (
+                      <button
+                        key={date}
+                        type="button"
+                        className="badge badge--accent"
+                        onClick={() => toggleDate(date)}
+                      >
+                        {formatIsoDate(date)} ×
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {isAppointment && (
+                <div className="card">
+                  <h2 className="card-title">기간과 시간</h2>
+                  <p className="card-sub">약속 후보 기간과 시간 범위를 다시 설정할 수 있습니다.</p>
+                  <AppointmentRangePicker value={appt} onChange={setAppt} disabled={busy} />
+                </div>
+              )}
+
+              <div className="card">
+                <h2 className="card-title">공개와 참여</h2>
+                <div className="stack">
+                  <Field label="결과 공개 시점">
+                    <div className="choice-grid choice-grid--3">
+                      {Object.values(RESULT_VISIBILITY).map((value) => (
+                        <ChoiceCard
+                          key={value}
+                          type="radio"
+                          name="rv"
+                          checked={resultVisibility === value}
+                          onChange={() => setResultVisibility(value)}
+                          title={RESULT_VISIBILITY_LABEL[value]}
+                        />
+                      ))}
+                    </div>
+                  </Field>
+
+                  {!poll.anonymous && (
+                    <Field label="이름 공개 범위">
+                      <div className="choice-grid choice-grid--2">
+                        {Object.values(NAME_DISCLOSURE).map((value) => (
+                          <ChoiceCard
+                            key={value}
+                            type="radio"
+                            name="nd"
+                            checked={nameDisclosure === value}
+                            onChange={() => setNameDisclosure(value)}
+                            title={NAME_DISCLOSURE_LABEL[value]}
+                          />
+                        ))}
+                      </div>
+                    </Field>
+                  )}
+
+                  {!isAppointment && (
+                    <Field label="고를 수 있는 개수">
+                      <div className="choice-grid choice-grid--2">
+                        <ChoiceCard
+                          type="radio"
+                          name="ms"
+                          checked={!multiSelect}
+                          onChange={() => setMultiSelect(false)}
+                          title="하나만"
+                        />
+                        <ChoiceCard
+                          type="radio"
+                          name="ms"
+                          checked={multiSelect}
+                          onChange={() => setMultiSelect(true)}
+                          title="여러 개"
+                        />
+                      </div>
+                    </Field>
+                  )}
+
+                  <Field label="재투표">
+                    <div className="choice-grid choice-grid--2">
+                      <ChoiceCard
+                        type="radio"
+                        name="ar"
+                        checked={allowRevote}
+                        onChange={() => setAllowRevote(true)}
+                        title="마감 전까지 수정 허용"
+                      />
+                      <ChoiceCard
+                        type="radio"
+                        name="ar"
+                        checked={!allowRevote}
+                        onChange={() => setAllowRevote(false)}
+                        title="한 번만 참여"
+                      />
+                    </div>
+                  </Field>
+
+                  <Field label="관리 비밀번호 변경" hint="비워 두면 그대로 둡니다.">
+                    <input
+                      type="password"
+                      className="input"
+                      value={newPassword}
+                      minLength={LIMITS.PASSWORD_MIN}
+                      maxLength={LIMITS.PASSWORD_MAX}
+                      autoComplete="new-password"
+                      placeholder="새 비밀번호"
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
+                  </Field>
+                </div>
+              </div>
+
+              {error && <div className="notice notice--danger">{error}</div>}
+
+              <div className="row manage-save-row">
                 <button
                   type="button"
-                  className="btn btn--sm btn--ghost"
+                  className="btn btn--primary btn--lg"
+                  onClick={save}
                   disabled={busy}
-                  onClick={() =>
-                    removeBallot(b.voterKey, poll.anonymous ? `익명 ${i + 1}` : b.name)
-                  }
                 >
-                  표 지우기
+                  {busy ? '저장 중…' : '변경 사항 저장'}
                 </button>
-              </li>
-            ))}
-          </ul>
-        </div>
+              </div>
+            </>
+          )}
+        </section>
       )}
 
-      <div className="card" style={{ borderColor: 'var(--danger-border)' }}>
-        <h2 className="card-title">투표 삭제</h2>
-        <p className="card-sub">투표와 모든 응답이 즉시 사라집니다. 되돌릴 수 없습니다.</p>
-        <button
-          type="button"
-          className="btn btn--danger"
-          onClick={() => setDeleteOpen(true)}
-          disabled={busy}
-        >
-          이 투표 삭제
-        </button>
-      </div>
+      {activeSection === 'participants' && (
+        <section className="manage-panel" role="tabpanel">
+          <div className="card">
+            <div className="row-between manage-participant-head">
+              <div>
+                <h2 className="card-title">참여자 명단</h2>
+                <p className="card-sub">
+                  이름과 선택 내역은 관리 비밀번호를 확인한 사람만 보입니다.
+                </p>
+              </div>
+              <span className="badge badge--accent">{data.totalVoters}명</span>
+            </div>
+
+            {data.ballots?.length ? (
+              <ul className="manage-participant-list">
+                {data.ballots.map((ballot, index) => {
+                  const label = poll.anonymous
+                    ? `익명 참여자 ${String(index + 1).padStart(2, '0')}`
+                    : ballot.name || '(이름 없음)'
+                  const selections = ballotSelections(poll, ballot)
+                  const visibleSelections = selections.slice(0, 16)
+                  return (
+                    <li key={ballot.voterKey} className="manage-participant">
+                      <div className="manage-participant-copy">
+                        <div className="manage-participant-name">
+                          <strong>{label}</strong>
+                          {ballot.updatedAt > 0 && (
+                            <time dateTime={new Date(ballot.updatedAt).toISOString()}>
+                              {participantTimeFormat.format(ballot.updatedAt)} 응답
+                            </time>
+                          )}
+                        </div>
+                        <div className="manage-participant-choices">
+                          {visibleSelections.length ? (
+                            <>
+                              {visibleSelections.map((selection) => (
+                                <span key={selection}>{selection}</span>
+                              ))}
+                              {selections.length > visibleSelections.length && (
+                                <span>+{selections.length - visibleSelections.length}개</span>
+                              )}
+                            </>
+                          ) : (
+                            <em>선택 내역 없음</em>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn--sm btn--ghost"
+                        disabled={busy}
+                        onClick={() => setBallotToDelete({ voterKey: ballot.voterKey, label })}
+                      >
+                        응답 삭제
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <div className="manage-participant-empty">
+                <UsersIcon size={25} />
+                <strong>아직 참여자가 없습니다.</strong>
+                <span>첫 참여자가 생기면 이름과 선택 내역이 여기에 표시됩니다.</span>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {activeSection === 'delete' && (
+        <section className="manage-panel" role="tabpanel">
+          <div className="card manage-danger-zone">
+            <span className="manage-danger-icon">
+              <TrashIcon size={24} />
+            </span>
+            <h2 className="card-title">투표 삭제</h2>
+            <p className="card-sub">
+              투표와 참여자 응답 {data.totalVoters}건이 즉시 사라집니다. 이 작업은 되돌릴 수
+              없습니다.
+            </p>
+            {error && <div className="notice notice--danger">{error}</div>}
+            <button
+              type="button"
+              className="btn btn--danger"
+              onClick={() => setDeleteOpen(true)}
+              disabled={busy}
+            >
+              이 투표 삭제
+            </button>
+          </div>
+        </section>
+      )}
 
       <ConfirmDialog
-        open={Boolean(confirmState)}
-        title="정말 이대로 저장할까요"
-        message={confirmState?.message}
-        confirmLabel="그래도 저장"
+        open={Boolean(ballotToDelete)}
+        title="참여자 응답을 삭제할까요"
+        message={`${ballotToDelete?.label || '참여자'}의 응답이 사라집니다. 참여자는 다시 투표할 수 있습니다.`}
+        confirmLabel="응답 삭제"
         tone="danger"
-        onCancel={() => setConfirmState(null)}
-        onConfirm={() => {
-          setConfirmState(null)
-          save(true)
-        }}
+        onCancel={() => setBallotToDelete(null)}
+        onConfirm={removeBallot}
       />
       <ConfirmDialog
         open={deleteOpen}

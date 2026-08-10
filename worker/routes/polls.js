@@ -72,13 +72,11 @@ export async function readPoll({ request, env, params }) {
       totalVoters: records.length,
       isAdmin,
       // 관리 화면에서 특정 참여자의 표를 지울 수 있게, 생성자에게만 식별자를 준다.
-      ballots: isAdmin
-        ? records.map((r) => ({ voterKey: r.voterKey, name: r.name, updatedAt: r.updatedAt }))
-        : null,
+      ballots: isAdmin ? records.map(publicBallot) : null,
       results: visible ? computeResults(poll, records) : null,
       resultsLocked: visible ? null : poll.resultVisibility,
     },
-    { headers: { 'cache-control': 'private, max-age=5' } },
+    { headers: { 'cache-control': 'private, no-store' } },
   )
 }
 

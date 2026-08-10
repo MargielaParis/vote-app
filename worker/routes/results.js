@@ -16,6 +16,6 @@ export async function readResults({ request, env, params }) {
 
   return json(
     { totalVoters: records.length, results: computeResults(poll, records) },
-    { headers: { 'cache-control': 'private, max-age=10' } },
+    { headers: { 'cache-control': 'private, no-store' } },
   )
 }

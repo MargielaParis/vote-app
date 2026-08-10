@@ -39,7 +39,7 @@ export default function ResultsPage() {
         description={pollMetaDescription(poll)}
         canonicalPath={`/p/${id}`}
       />
-      <PollHeader poll={poll} totalVoters={data.totalVoters} isAdmin={data.isAdmin} />
+      <PollHeader poll={poll} totalVoters={data.totalVoters} />
       {data.results ? (
         <ResultsView poll={poll} results={data.results} />
       ) : (

@@ -25,6 +25,7 @@ async function request(method, path, { body, pollId, withVoter, withAdmin } = {}
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
+      cache: 'no-store',
     })
   } catch {
     throw new ApiError(0, 'network', '네트워크에 연결할 수 없습니다.')
