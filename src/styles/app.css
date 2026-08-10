@@ -1841,19 +1841,24 @@ form > .card,
   background: var(--border);
 }
 
-.create-steps a {
+.create-steps button {
   position: relative;
   z-index: 1;
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
+  width: 100%;
   min-height: 54px;
   border: 1px solid transparent;
   border-radius: 11px;
+  background: transparent;
   padding: 8px 10px;
   color: var(--text-muted);
+  font: inherit;
+  text-align: left;
   text-decoration: none;
+  cursor: pointer;
   transition:
     color 0.18s,
     background-color 0.18s,
@@ -1861,12 +1866,12 @@ form > .card,
     transform 0.18s;
 }
 
-.create-steps a:hover {
+.create-steps button:hover {
   color: var(--text);
   transform: translateX(3px);
 }
 
-.create-steps a.is-active {
+.create-steps button.is-active {
   border-color: var(--accent-border);
   background: var(--accent-soft);
   color: var(--text);
@@ -1890,14 +1895,14 @@ form > .card,
     transform 0.18s;
 }
 
-.create-steps a.is-active .create-step-dot {
+.create-steps button.is-active .create-step-dot {
   border-color: var(--accent);
   background: var(--accent);
   color: var(--on-accent);
   transform: scale(1.08);
 }
 
-.create-steps a.is-complete .create-step-dot {
+.create-steps button.is-complete .create-step-dot {
   border-color: var(--accent-border);
   background: var(--accent-soft);
   color: var(--accent);
@@ -2127,7 +2132,7 @@ form > .card,
     display: none;
   }
 
-  .create-steps a {
+  .create-steps button {
     grid-template-columns: 26px auto;
     min-width: max-content;
     min-height: 44px;
@@ -2158,7 +2163,7 @@ form > .card,
     margin-inline: -6px;
   }
 
-  .create-steps a {
+  .create-steps button {
     grid-template-columns: 22px minmax(0, 1fr);
     gap: 4px;
     min-width: 0;

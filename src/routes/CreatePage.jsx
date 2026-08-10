@@ -157,6 +157,13 @@ export default function CreatePage() {
   const activeSection = useActiveSection(stepIds)
   const activeStep = Math.max(0, steps.findIndex((step) => step.id === activeSection))
 
+  const scrollToStep = (id) => {
+    const section = document.getElementById(id)
+    if (!section) return
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    section.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+  }
+
   const toggleDate = (value) => {
     setDates((prev) => {
       const next = new Set(prev)
@@ -229,9 +236,10 @@ export default function CreatePage() {
               const isActive = step.id === activeSection
               const isComplete = index < activeStep
               return (
-                <a
+                <button
                   key={step.id}
-                  href={`#${step.id}`}
+                  type="button"
+                  onClick={() => scrollToStep(step.id)}
                   className={`${isActive ? 'is-active' : ''}${isComplete ? ' is-complete' : ''}`}
                   aria-current={isActive ? 'step' : undefined}
                 >
@@ -242,7 +250,7 @@ export default function CreatePage() {
                     <strong>{step.label}</strong>
                     <small>{step.detail}</small>
                   </span>
-                </a>
+                </button>
               )
             })}
           </nav>
