@@ -148,7 +148,7 @@ function PollView({ id, data, merge }) {
         description={pollMetaDescription(poll)}
         canonicalPath={`/p/${id}`}
       />
-      <PollHeader poll={poll} totalVoters={data.totalVoters} isAdmin={data.isAdmin} />
+      <PollHeader poll={poll} totalVoters={data.totalVoters} />
 
       {closed && (
         <div className="notice notice--warn" style={{ marginBottom: 16 }}>

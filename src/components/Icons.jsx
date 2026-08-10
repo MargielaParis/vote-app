@@ -72,8 +72,14 @@ export function LinkIcon(props) {
   return (
     <Icon {...props}>
       <path d="m9.5 14.5 5-5" />
-      <path d="M7.2 17.8 5.7 19.3a3.5 3.5 0 0 1-5-5l3.1-3.1a3.5 3.5 0 0 1 4.9 0" transform="translate(2)" />
-      <path d="m14.8 6.2 1.5-1.5a3.5 3.5 0 0 1 5 5l-3.1 3.1a3.5 3.5 0 0 1-4.9 0" transform="translate(-2)" />
+      <path
+        d="M7.2 17.8 5.7 19.3a3.5 3.5 0 0 1-5-5l3.1-3.1a3.5 3.5 0 0 1 4.9 0"
+        transform="translate(2)"
+      />
+      <path
+        d="m14.8 6.2 1.5-1.5a3.5 3.5 0 0 1 5 5l-3.1 3.1a3.5 3.5 0 0 1-4.9 0"
+        transform="translate(-2)"
+      />
     </Icon>
   )
 }
@@ -108,6 +114,40 @@ export function TrashIcon(props) {
   return (
     <Icon {...props}>
       <path d="M4 7h16M9 3.5h6L16 7H8zM6.5 7l.8 13h9.4l.8-13M10 11v5M14 11v5" />
+    </Icon>
+  )
+}
+
+export function ChartIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+    </Icon>
+  )
+}
+
+export function LockIcon(props) {
+  return (
+    <Icon {...props}>
+      <rect x="4.5" y="10" width="15" height="11" rx="2.5" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14.5v2.5" />
+    </Icon>
+  )
+}
+
+export function EditIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="m4 20 1.2-4.7L16.8 3.7a2.1 2.1 0 0 1 3 3L8.2 18.3zM14.8 5.7l3 3" />
+    </Icon>
+  )
+}
+
+export function UsersIcon(props) {
+  return (
+    <Icon {...props}>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3.5 20v-2a5.5 5.5 0 0 1 11 0v2M15 5.2a3.2 3.2 0 0 1 0 6.1M16.5 14.2a5.5 5.5 0 0 1 4 5.3" />
     </Icon>
   )
 }

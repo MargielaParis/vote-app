@@ -1,19 +1,12 @@
-import { Link } from 'react-router-dom'
 import { POLL_TYPE, POLL_TYPE_LABEL, RESULT_VISIBILITY_LABEL } from '@shared/enums.js'
 import { Countdown } from './Countdown.jsx'
+import { PollTabs } from './PollTabs.jsx'
 import { formatDeadline } from '@/lib/datetime.js'
 
-export function PollHeader({ poll, totalVoters, isAdmin }) {
+export function PollHeader({ poll, totalVoters }) {
   return (
     <header style={{ margin: '10px 0 18px' }}>
-      <div className="row-between">
-        <h1 className="poll-title">{poll.title}</h1>
-        {isAdmin && (
-          <Link to={`/p/${poll.id}/manage`} className="btn btn--sm">
-            관리
-          </Link>
-        )}
-      </div>
+      <h1 className="poll-title">{poll.title}</h1>
       {poll.description && <p className="poll-desc">{poll.description}</p>}
       <div className="badges">
         <span className="badge badge--accent">{POLL_TYPE_LABEL[poll.pollType]}</span>
@@ -29,6 +22,7 @@ export function PollHeader({ poll, totalVoters, isAdmin }) {
       <p className="faint" style={{ marginTop: 8 }}>
         마감 {formatDeadline(poll.deadline)}
       </p>
+      <PollTabs pollId={poll.id} />
     </header>
   )
 }
