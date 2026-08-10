@@ -4,6 +4,7 @@ import { LIMITS } from '@shared/limits.js'
 import { POLL_TYPE } from '@shared/enums.js'
 import { buildGrid, masksToSelection, isRowSelected } from '@shared/slots.js'
 import { Layout, Loading, EmptyState } from '@/components/Layout.jsx'
+import { PageMeta } from '@/components/PageMeta.jsx'
 import { Field, ChoiceCard } from '@/components/Field.jsx'
 import { PollHeader } from '@/components/PollHeader.jsx'
 import { AppointmentGrid } from '@/components/AppointmentGrid.jsx'
@@ -14,6 +15,7 @@ import { usePoll } from '@/hooks/usePoll.js'
 import { useNow } from '@/hooks/useNow.js'
 import { api, ApiError } from '@/lib/api.js'
 import { formatIsoDate } from '@/lib/datetime.js'
+import { pollMetaDescription } from '@shared/meta.js'
 
 export default function PollPage() {
   const { id } = useParams()
@@ -28,6 +30,7 @@ export default function PollPage() {
   if (error) {
     return (
       <Layout>
+        <PageMeta title={error.status === 404 ? '없는 투표' : '투표를 불러오지 못함'} />
         <EmptyState title={error.status === 404 ? '없는 투표입니다' : '불러오지 못했습니다'}>
           <p>{error.message}</p>
           <Link to="/" className="btn">
@@ -138,6 +141,11 @@ function PollView({ id, data, merge }) {
 
   return (
     <Layout wide={isAppointment}>
+      <PageMeta
+        title={poll.title}
+        description={pollMetaDescription(poll)}
+        canonicalPath={`/p/${id}`}
+      />
       <PollHeader poll={poll} totalVoters={data.totalVoters} isAdmin={data.isAdmin} />
 
       {closed && (

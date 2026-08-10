@@ -11,6 +11,7 @@ import {
   NAME_DISCLOSURE_LABEL,
 } from '@shared/enums.js'
 import { Layout } from '@/components/Layout.jsx'
+import { PageMeta } from '@/components/PageMeta.jsx'
 import { Field, ChoiceCard } from '@/components/Field.jsx'
 import { OptionListEditor } from '@/components/OptionListEditor.jsx'
 import { CalendarMonth } from '@/components/CalendarMonth.jsx'
@@ -210,7 +211,10 @@ export default function CreatePage() {
       const body = buildBody()
       const res = await api.createPoll(body)
       setAdminToken(res.poll.id, res.adminToken)
-      navigate(`/p/${res.poll.id}/share`, { replace: true })
+      navigate(`/p/${res.poll.id}/share`, {
+        replace: true,
+        state: { pollTitle: res.poll.title },
+      })
     } catch (err) {
       const message = err instanceof ApiError ? err.message : err.message || '만들지 못했습니다.'
       setError(message)
@@ -222,6 +226,11 @@ export default function CreatePage() {
 
   return (
     <Layout wide>
+      <PageMeta
+        title="새 투표 만들기"
+        description="항목, 날짜, 약속 시간 중 원하는 방식으로 새 투표를 만드세요."
+        canonicalPath="/new"
+      />
       <div className="create-layout">
         <aside className="create-rail">
           <div className="create-rail-intro">

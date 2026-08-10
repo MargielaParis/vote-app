@@ -4,6 +4,7 @@ import { createPoll, readPoll, patchPoll, removePoll } from './routes/polls.js'
 import { castVote, withdrawVote, adminDeleteVote } from './routes/votes.js'
 import { readResults } from './routes/results.js'
 import { createSession } from './routes/session.js'
+import { servePollPage } from './meta.js'
 
 const router = createRouter()
 
@@ -25,9 +26,9 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url)
 
-    // run_worker_first 로 /api/* 만 여기로 들어온다. 그 외는 정적 에셋이 처리한다.
+    // /p/* 는 공유 미리보기 메타데이터를 넣은 뒤 정적 SPA를 반환한다.
     if (!url.pathname.startsWith('/api/')) {
-      return env.ASSETS ? env.ASSETS.fetch(request) : new Response('Not found', { status: 404 })
+      return servePollPage(request, env, url)
     }
 
     if (request.method === 'OPTIONS') {
