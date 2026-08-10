@@ -85,3 +85,29 @@ export function CheckIcon(props) {
     </Icon>
   )
 }
+
+export function HistoryIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M4.2 8.2A8.5 8.5 0 1 1 3.8 16" />
+      <path d="M4.2 4.8v3.4H.8M12 7.5v4.8l3.2 2" />
+    </Icon>
+  )
+}
+
+export function DeviceIcon(props) {
+  return (
+    <Icon {...props}>
+      <rect x="4" y="3" width="16" height="18" rx="2.5" />
+      <path d="M9 6h6M10 18h4" />
+    </Icon>
+  )
+}
+
+export function TrashIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M4 7h16M9 3.5h6L16 7H8zM6.5 7l.8 13h9.4l.8-13M10 11v5M14 11v5" />
+    </Icon>
+  )
+}

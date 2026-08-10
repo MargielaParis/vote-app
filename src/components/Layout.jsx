@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRightIcon, WaymarkIcon } from './Icons.jsx'
+import { ArrowRightIcon, HistoryIcon, WaymarkIcon } from './Icons.jsx'
 
 export function Layout({ children, wide = false }) {
   return (
@@ -11,10 +11,16 @@ export function Layout({ children, wide = false }) {
           </span>
           모두의 투표
         </Link>
-        <Link to="/new" className="btn btn--sm topbar-cta">
-          새 투표
-          <ArrowRightIcon size={14} />
-        </Link>
+        <div className="topbar-actions">
+          <Link to="/mine" className="btn btn--sm btn--ghost topbar-history">
+            <HistoryIcon size={15} />
+            내 투표
+          </Link>
+          <Link to="/new" className="btn btn--sm topbar-cta">
+            새 투표
+            <ArrowRightIcon size={14} />
+          </Link>
+        </div>
       </header>
       <main className={wide ? 'page page--wide' : 'page'}>{children}</main>
       <footer className="footer">링크를 아는 사람만 참여할 수 있습니다.</footer>

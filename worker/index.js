@@ -1,6 +1,6 @@
 import { createRouter } from './router.js'
 import { json, errorResponse, HttpError } from './http.js'
-import { createPoll, readPoll, patchPoll, removePoll } from './routes/polls.js'
+import { createPoll, readPoll, readPollSummary, patchPoll, removePoll } from './routes/polls.js'
 import { castVote, withdrawVote, adminDeleteVote } from './routes/votes.js'
 import { readResults } from './routes/results.js'
 import { createSession } from './routes/session.js'
@@ -11,6 +11,7 @@ const router = createRouter()
 router.get('/api/health', () => json({ ok: true, service: 'vote-app', time: Date.now() }))
 
 router.post('/api/polls', createPoll)
+router.get('/api/polls/:id/summary', readPollSummary)
 router.get('/api/polls/:id', readPoll)
 router.patch('/api/polls/:id', patchPoll)
 router.delete('/api/polls/:id', removePoll)
