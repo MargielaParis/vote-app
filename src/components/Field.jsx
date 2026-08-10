@@ -20,7 +20,7 @@ export function Field({ label, hint, error, count, children }) {
 }
 
 /** 라디오/체크박스 카드. 라벨 전체가 클릭 영역이다. */
-export function ChoiceCard({ type, name, checked, onChange, title, desc, disabled }) {
+export function ChoiceCard({ type, name, checked, onChange, title, desc, disabled, icon }) {
   const id = useId()
   return (
     <label className={checked ? 'choice is-on' : 'choice'} htmlFor={id}>
@@ -32,6 +32,7 @@ export function ChoiceCard({ type, name, checked, onChange, title, desc, disable
         disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
       />
+      {icon && <span className="choice-icon">{icon}</span>}
       <span className="choice-body">
         <span className="choice-name">{title}</span>
         {desc && <span className="choice-desc">{desc}</span>}

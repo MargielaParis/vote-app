@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { ArrowRightIcon, WaymarkIcon } from './Icons.jsx'
 
 export function Layout({ children, wide = false }) {
   return (
@@ -6,12 +7,13 @@ export function Layout({ children, wide = false }) {
       <header className="topbar">
         <Link to="/" className="brand">
           <span className="brand-mark" aria-hidden="true">
-            ✓
+            <WaymarkIcon size={18} />
           </span>
           모두의 투표
         </Link>
-        <Link to="/new" className="btn btn--sm">
-          투표 만들기
+        <Link to="/new" className="btn btn--sm topbar-cta">
+          새 투표
+          <ArrowRightIcon size={14} />
         </Link>
       </header>
       <main className={wide ? 'page page--wide' : 'page'}>{children}</main>
