@@ -26,6 +26,7 @@ import {
 import { useToast } from '@/lib/toastContext.js'
 import { api, ApiError } from '@/lib/api.js'
 import { setAdminToken } from '@/lib/adminSession.js'
+import { rememberPoll } from '@/lib/pollHistory.js'
 import {
   toLocalInput,
   fromLocalInput,
@@ -211,6 +212,7 @@ export default function CreatePage() {
       const body = buildBody()
       const res = await api.createPoll(body)
       setAdminToken(res.poll.id, res.adminToken)
+      rememberPoll(res.poll, { creator: true })
       navigate(`/p/${res.poll.id}/share`, {
         replace: true,
         state: { pollTitle: res.poll.title },

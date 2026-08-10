@@ -82,6 +82,22 @@ export async function readPoll({ request, env, params }) {
   )
 }
 
+export async function readPollSummary({ env, params }) {
+  const poll = await requirePoll(env, params)
+  return json(
+    {
+      poll: {
+        id: poll.id,
+        title: poll.title,
+        pollType: poll.pollType,
+        deadline: poll.deadline,
+        createdAt: poll.createdAt,
+      },
+    },
+    { headers: { 'cache-control': 'private, max-age=60' } },
+  )
+}
+
 export async function patchPoll({ request, env, params }) {
   const poll = await requirePoll(env, params)
   if (!(await checkAdmin(env, request, poll.id))) {

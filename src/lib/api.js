@@ -55,6 +55,8 @@ export const api = {
   getPoll: (id) =>
     request('GET', `/api/polls/${id}`, { pollId: id, withVoter: true, withAdmin: true }),
 
+  getPollSummary: (id) => request('GET', `/api/polls/${id}/summary`),
+
   patchPoll: (id, body) =>
     request('PATCH', `/api/polls/${id}`, { body, pollId: id, withAdmin: true }),
 

@@ -19,6 +19,7 @@ import { useToast } from '@/lib/toastContext.js'
 import { api, ApiError } from '@/lib/api.js'
 import { usePoll } from '@/hooks/usePoll.js'
 import { setAdminToken, clearAdminToken } from '@/lib/adminSession.js'
+import { forgetPoll } from '@/lib/pollHistory.js'
 import { toLocalInput, fromLocalInput, formatIsoDate } from '@/lib/datetime.js'
 import { pollMetaDescription } from '@shared/meta.js'
 
@@ -209,6 +210,7 @@ function ManageView({ id, data, reload }) {
     try {
       await api.deletePoll(id)
       clearAdminToken(id)
+      forgetPoll(id)
       toast.show('투표를 삭제했습니다.')
       navigate('/', { replace: true })
     } catch (err) {
