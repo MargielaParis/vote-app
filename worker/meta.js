@@ -48,16 +48,21 @@ export async function servePollPage(request, env, url) {
     const description = pollMetaDescription(poll)
     const canonicalUrl = new URL(`/p/${route.id}`, url.origin).toString()
 
+    // og:url은 정적 HTML에 두지 않는다. 배포 도메인을 소스에 박지 않으려고 요청 origin에서 만든다.
     return new globalThis.HTMLRewriter()
       .on('title', {
         element(element) {
           element.setInnerContent(pageTitle)
         },
       })
+      .on('head', {
+        element(element) {
+          element.append(`<meta property="og:url" content="${canonicalUrl}" />`, { html: true })
+        },
+      })
       .on('meta[name="description"]', setContent(description))
       .on('meta[property="og:title"]', setContent(socialTitle))
       .on('meta[property="og:description"]', setContent(description))
-      .on('meta[property="og:url"]', setContent(canonicalUrl))
       .on('meta[property="og:site_name"]', setContent(SITE_NAME))
       .on('meta[name="twitter:title"]', setContent(socialTitle))
       .on('meta[name="twitter:description"]', setContent(description))
