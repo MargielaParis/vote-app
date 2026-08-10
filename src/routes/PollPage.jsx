@@ -15,6 +15,7 @@ import { usePoll } from '@/hooks/usePoll.js'
 import { useNow } from '@/hooks/useNow.js'
 import { api, ApiError } from '@/lib/api.js'
 import { formatIsoDate } from '@/lib/datetime.js'
+import { removePollRole } from '@/lib/pollHistory.js'
 import { pollMetaDescription } from '@shared/meta.js'
 
 export default function PollPage() {
@@ -118,6 +119,7 @@ function PollView({ id, data, merge }) {
     setError('')
     try {
       const res = await api.withdraw(id)
+      removePollRole(id, 'voter')
       merge({
         you: null,
         totalVoters: res.totalVoters,
