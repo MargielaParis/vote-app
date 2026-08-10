@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Layout } from '@/components/Layout.jsx'
+import { PageMeta } from '@/components/PageMeta.jsx'
 import { POLL_TYPE, POLL_TYPE_LABEL, POLL_TYPE_HINT } from '@shared/enums.js'
 import {
   AppointmentPollIcon,
@@ -87,6 +88,7 @@ function HeroFlow() {
 export default function HomePage() {
   return (
     <Layout wide>
+      <PageMeta canonicalPath="/" />
       <section className="home-hero">
         <div className="home-hero-copy">
           <p className="eyebrow">
