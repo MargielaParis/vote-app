@@ -24,8 +24,9 @@ Worker 하나가 SPA와 `/api/*`를 함께 서빙한다. `@cloudflare/vite-plugi
 실제 workerd 런타임을 인프로세스로 띄우므로 개발 중에도 프록시나 CORS 설정이 없다.
 
 ```
-brower ──▶ Worker
-             ├── /api/*  → 라우터 → KV      (run_worker_first)
+browser ──▶ Worker
+             ├── /api/*  → 라우터 → KV
+             ├── /p/*    → 투표별 공유 메타 → 정적 에셋
              └── 그 외    → 정적 에셋 (SPA fallback)
 ```
 

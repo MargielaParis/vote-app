@@ -9,6 +9,7 @@ import {
   NAME_DISCLOSURE_LABEL,
 } from '@shared/enums.js'
 import { Layout, Loading, EmptyState } from '@/components/Layout.jsx'
+import { PageMeta } from '@/components/PageMeta.jsx'
 import { Field, ChoiceCard } from '@/components/Field.jsx'
 import { OptionListEditor } from '@/components/OptionListEditor.jsx'
 import { CalendarMonth } from '@/components/CalendarMonth.jsx'
@@ -19,6 +20,7 @@ import { api, ApiError } from '@/lib/api.js'
 import { usePoll } from '@/hooks/usePoll.js'
 import { setAdminToken, clearAdminToken } from '@/lib/adminSession.js'
 import { toLocalInput, fromLocalInput, formatIsoDate } from '@/lib/datetime.js'
+import { pollMetaDescription } from '@shared/meta.js'
 
 export default function ManagePage() {
   const { id } = useParams()
@@ -33,6 +35,7 @@ export default function ManagePage() {
   if (error) {
     return (
       <Layout>
+        <PageMeta title={error.status === 404 ? '없는 투표' : '관리를 불러오지 못함'} />
         <EmptyState title={error.status === 404 ? '없는 투표입니다' : '불러오지 못했습니다'}>
           <p>{error.message}</p>
           <Link to="/" className="btn">
@@ -73,6 +76,7 @@ function PasswordGate({ id, title, onDone }) {
 
   return (
     <Layout>
+      <PageMeta title={`${title} 관리`} canonicalPath={`/p/${id}`} />
       <div className="card" style={{ marginTop: 24 }}>
         <h1 className="card-title">비밀번호 확인</h1>
         <p className="card-sub">
@@ -230,6 +234,11 @@ function ManageView({ id, data, reload }) {
 
   return (
     <Layout>
+      <PageMeta
+        title={`${poll.title} 관리`}
+        description={pollMetaDescription(poll)}
+        canonicalPath={`/p/${id}`}
+      />
       <div className="row-between" style={{ margin: '10px 0 18px' }}>
         <h1 className="poll-title">투표 관리</h1>
         <Link to={`/p/${id}`} className="btn btn--sm">
